@@ -62,8 +62,10 @@ router.get("/profile", userAuth, async (req, res) => {
     console.log("user", user);
 
     res.status(200).json({
+      name: user.name,
       username: user.username,
       email: user.email,
+      phoneNumber: user.phoneNumber,
       package: user.package,
       earnings: user.earnings,
       totalEarnings: user.totalEarnings,
