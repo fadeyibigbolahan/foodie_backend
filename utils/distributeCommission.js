@@ -138,6 +138,7 @@ async function distributeCommission(
       const remainingAmount = (packagePrice * remainingPercentage) / 100;
 
       lastValidReferrer.earnings += remainingAmount;
+      lastValidReferrer.totalEarnings += remainingAmount;
       await lastValidReferrer.save();
 
       await Transaction.create({
