@@ -64,7 +64,7 @@ const userRegister = async (userDets, role, res) => {
     // create a new user
     const newUser = new User({
       ...userDets,
-      referredBy: referredBy || "superadmin",
+      referredBy: referredBy || "topmost",
       package: code.package._id,
       bv: code.package.bv, // Award BV from the package
       password,
@@ -112,7 +112,7 @@ const userRegister = async (userDets, role, res) => {
     await code.save();
 
     // Distribute BV and commission
-    console.log("Distributing commission for user:", newUser.username);
+    // console.log("Distributing commission for user:", newUser.username);
     try {
       await distributeCommission(newUser.username);
     } catch (err) {
@@ -123,7 +123,7 @@ const userRegister = async (userDets, role, res) => {
       });
     }
 
-    console.log("distribution commission check, passed here");
+    // console.log("distribution commission check, passed here");
 
     let token;
     if (savedUser) {

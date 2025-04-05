@@ -42,19 +42,6 @@ async function distributeCommission(
     let totalBVDistributed = 0;
     let lastValidReferrer = null;
 
-    // If this is an upgrade, calculate the difference in price and BV
-    let priceDifference = 0;
-    let bvDifference = 0;
-    let welcomeBonus = 0;
-
-    if (isUpgrade && previousPackage) {
-      priceDifference = packagePrice - previousPackage.price;
-      bvDifference = packageBV - previousPackage.bv;
-
-      // 20% welcome bonus of the difference in price
-      welcomeBonus = (priceDifference * 20) / 100;
-    }
-
     // Loop through up to 6 levels (the maximum levels for commission distribution)
     while (referrerUsername && level <= COMMISSION_STRUCTURE.length) {
       const commissionConfig = COMMISSION_STRUCTURE.find(
@@ -76,20 +63,19 @@ async function distributeCommission(
       // Handle upgrade logic (only the commission is affected, not BV)
       if (isUpgrade && previousPackage) {
         let prevCommissionAmount =
-          (previousPackage.price * commissionConfig.percentage) / 100;
+          (previousPackage.price * commissionData.percentage) / 100;
+        let prevBVAmount = previousPackage.bv;
 
-        commissionAmount += welcomeBonus; // Add welcome bonus to the commission
+        commissionAmount -= prevCommissionAmount;
+        bvAmount -= prevBVAmount;
 
-        // Adjust BV (fixed for each upline)
-        referrer.bv += bvDifference;
-
-        // Log the upgrade commission if applicable
+        // If no additional commission, skip this level
         if (commissionAmount <= 0) {
           referrer = await User.findOne({
             username: referrer.referredBy,
           }).populate("package");
           level++;
-          continue;
+          continue; // Skip if no commission is to be given
         }
       }
 
@@ -100,12 +86,10 @@ async function distributeCommission(
       console.log(`totalDistributed: ${totalDistributed}`);
 
       referrer.earnings += commissionAmount;
+      referrer.bv += packageBV; // Fixed BV addition
       referrer.totalEarnings += commissionAmount;
-      referrer.bv += packageBV; // Add BV to the referrer
       referrer.monthlyBV += packageBV; // Add BV to monthly BV
-      console.log(
-        `Referrer ${referrer.username} earnings: ${referrer.earnings}`
-      );
+      console.log(`Referrer ${referrer}`);
 
       // Save the referrer with the updated earnings and BV
       await referrer.save();
@@ -136,10 +120,17 @@ async function distributeCommission(
     if (lastValidReferrer && totalDistributed < 100) {
       const remainingPercentage = 100 - totalDistributed;
       const remainingAmount = (packagePrice * remainingPercentage) / 100;
+      // const remainingBV = packageBV - totalBVDistributed;
 
       lastValidReferrer.earnings += remainingAmount;
+      // lastValidReferrer.bv += remainingBV; // Fixed BV addition
+      lastValidReferrer.totalEarnings += remainingAmount;
+      // lastValidReferrer.monthlyBV += remainingBV;
+
+      // Save the last valid referrer with the extra earnings and BV
       await lastValidReferrer.save();
 
+      // Log the extra commission transaction
       await Transaction.create({
         user: lastValidReferrer._id,
         type: "extra-commission",
@@ -148,6 +139,7 @@ async function distributeCommission(
         details: `Extra commission due to incomplete upline structure from ${user.username}`,
       });
 
+      // Send a notification for the extra commission
       await createNotification(
         lastValidReferrer._id,
         `You received ₦${remainingAmount.toFixed(2)} extra commission from ${
