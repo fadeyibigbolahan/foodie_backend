@@ -64,7 +64,7 @@ const userRegister = async (userDets, role, res) => {
     // create a new user
     const newUser = new User({
       ...userDets,
-      referredBy: referredBy || "topmost",
+      referredBy: referredBy || "foodieboss",
       package: code.package._id,
       bv: code.package.bv, // Award BV from the package
       password,
