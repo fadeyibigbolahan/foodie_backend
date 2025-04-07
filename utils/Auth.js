@@ -30,13 +30,13 @@ const userRegister = async (userDets, role, res) => {
     }
 
     // Validate the email
-    let emailNotRegistered = await validateEmail(userDets.email);
-    if (!emailNotRegistered) {
-      return res.status(400).json({
-        message: `Email is already taken.`,
-        success: false,
-      });
-    }
+    // let emailNotRegistered = await validateEmail(userDets.email);
+    // if (!emailNotRegistered) {
+    //   return res.status(400).json({
+    //     message: `Email is already taken.`,
+    //     success: false,
+    //   });
+    // }
 
     // Check if package code exists and is unused
     const code = await PackageCode.findOne({
@@ -172,12 +172,12 @@ LOGIN AUTHENTICATION => STARTS
  * @DESC To login the user (ADMIN, USER)
  */
 const userLogin = async (userCreds, role, res) => {
-  const { email, password } = userCreds;
+  const { username, password } = userCreds;
 
   console.log("user cred", userCreds);
 
-  // Check if the user exists using email only
-  const user = await User.findOne({ email });
+  // Check if the user exists using username only
+  const user = await User.findOne({ username });
 
   if (!user) {
     return res.status(404).json({
@@ -204,7 +204,7 @@ const userLogin = async (userCreds, role, res) => {
         _id: user._id,
         username: user.username,
         role: user.role,
-        email: user.email,
+        email: user.email || "",
       },
       SECRET,
       { expiresIn: "7 days" }
@@ -214,8 +214,8 @@ const userLogin = async (userCreds, role, res) => {
       role: user.role,
       _id: user._id,
       username: user.username,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
+      email: user.email || "",
+      phoneNumber: user.phoneNumber || "",
       package: user.package,
       token: `Bearer ${token}`,
       expiresIn: 168,
