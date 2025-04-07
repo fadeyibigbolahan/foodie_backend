@@ -18,6 +18,11 @@ async function distributeCommission(
       { level: 6, percentage: 0.5 },
     ];
 
+    const TOTAL_COMMISSION_PERCENTAGE = COMMISSION_STRUCTURE.reduce(
+      (sum, l) => sum + l.percentage,
+      0
+    );
+
     let user = await User.findOne({ username }).populate("package");
     if (!user || !user.referredBy) {
       console.log(`No user or no referrer for ${username}`);
@@ -29,7 +34,6 @@ async function distributeCommission(
       return;
     }
 
-    // Package details for the user registering
     const packagePrice = user.package.price;
     const packageBV = user.package.bv;
     console.log(
@@ -42,7 +46,6 @@ async function distributeCommission(
     let totalBVDistributed = 0;
     let lastValidReferrer = null;
 
-    // If this is an upgrade, calculate the difference in price and BV
     let priceDifference = 0;
     let bvDifference = 0;
     let welcomeBonus = 0;
@@ -50,12 +53,9 @@ async function distributeCommission(
     if (isUpgrade && previousPackage) {
       priceDifference = packagePrice - previousPackage.price;
       bvDifference = packageBV - previousPackage.bv;
-
-      // 20% welcome bonus of the difference in price
       welcomeBonus = (priceDifference * 20) / 100;
     }
 
-    // Loop through up to 6 levels (the maximum levels for commission distribution)
     while (referrerUsername && level <= COMMISSION_STRUCTURE.length) {
       const commissionConfig = COMMISSION_STRUCTURE.find(
         (l) => l.level === level
@@ -66,51 +66,37 @@ async function distributeCommission(
         username: referrerUsername,
       }).populate("package");
 
-      if (!referrer) break; // Stop if there is no referrer at any point
+      if (!referrer) break;
 
       lastValidReferrer = referrer;
 
-      // Calculate commission based on package price and commission percentage
       let commissionAmount = (packagePrice * percentage) / 100;
 
-      // Handle upgrade logic (only the commission is affected, not BV)
       if (isUpgrade && previousPackage) {
-        let prevCommissionAmount =
-          (previousPackage.price * commissionConfig.percentage) / 100;
+        let prevCommissionAmount = (previousPackage.price * percentage) / 100;
 
-        commissionAmount += welcomeBonus; // Add welcome bonus to the commission
+        commissionAmount =
+          commissionAmount - prevCommissionAmount + welcomeBonus;
 
-        // Adjust BV (fixed for each upline)
         referrer.bv += bvDifference;
 
-        // Log the upgrade commission if applicable
         if (commissionAmount <= 0) {
-          referrer = await User.findOne({
-            username: referrer.referredBy,
-          }).populate("package");
+          referrerUsername = referrer.referredBy;
           level++;
           continue;
         }
       }
 
-      // Distribute the commission and the BV (fixed for each upline)
       totalDistributed += percentage;
-      totalBVDistributed += packageBV; // Add fixed BV for each level
-      console.log(`totalBVDistributed: ${totalBVDistributed}`);
-      console.log(`totalDistributed: ${totalDistributed}`);
+      totalBVDistributed += packageBV;
 
       referrer.earnings += commissionAmount;
       referrer.totalEarnings += commissionAmount;
-      referrer.bv += packageBV; // Add BV to the referrer
-      referrer.monthlyBV += packageBV; // Add BV to monthly BV
-      console.log(
-        `Referrer ${referrer.username} earnings: ${referrer.earnings}`
-      );
+      referrer.bv += packageBV;
+      referrer.monthlyBV += packageBV;
 
-      // Save the referrer with the updated earnings and BV
       await referrer.save();
 
-      // Log the commission transaction
       await Transaction.create({
         user: referrer._id,
         type: isUpgrade ? "upgrade-commission" : "commission",
@@ -121,20 +107,19 @@ async function distributeCommission(
           : `Commission from referring ${user.username}`,
       });
 
-      // Send a notification to the referrer
       await createNotification(
         referrer._id,
         `You earned ₦${commissionAmount.toFixed(2)} from ${user.username}.`
       );
 
-      // Move to the next upline
       referrerUsername = referrer.referredBy;
       level++;
     }
 
-    // If total commission is less than 100%, distribute the remaining commission to the last valid referrer
-    if (lastValidReferrer && totalDistributed < 100) {
-      const remainingPercentage = 100 - totalDistributed;
+    // Corrected remaining commission logic
+    if (lastValidReferrer && totalDistributed < TOTAL_COMMISSION_PERCENTAGE) {
+      const remainingPercentage =
+        TOTAL_COMMISSION_PERCENTAGE - totalDistributed;
       const remainingAmount = (packagePrice * remainingPercentage) / 100;
 
       lastValidReferrer.earnings += remainingAmount;
