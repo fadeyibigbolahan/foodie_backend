@@ -1,40 +1,11 @@
 const express = require("express");
 const Transaction = require("../models/Transaction");
 const User = require("../models/User");
-const { userAuth } = require("../utils/Auth");
+const { userAuth, checkRole } = require("../utils/Auth");
 const router = express.Router();
 const Withdrawal = require("../models/Withdrawal"); // Assuming you have a Withdrawal model
 const createNotification = require("../utils/createNotification");
 const moment = require("moment"); // For date manipulation
-
-// router.post("/withdraw", async (req, res) => {
-//   try {
-//     const { username, amount } = req.body;
-//     let user = await User.findOne({ username });
-//     if (!user) return res.status(404).json({ message: "User not found" });
-
-//     if (user.earnings < amount)
-//       return res.status(400).json({ message: "Insufficient balance" });
-
-//     user.earnings -= amount;
-//     user.totalWithdrawals += amount;
-//     await user.save();
-
-//     // Log withdrawal transaction
-//     await Transaction.create({
-//       user: user._id,
-//       type: "withdrawal",
-//       amount: amount,
-//       balanceAfter: user.earnings,
-//       details: "User withdrawal request",
-//     });
-
-//     res.status(200).json({ message: "Withdrawal successful", user });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
 
 router.post("/withdrawal", userAuth, async (req, res) => {
   try {
@@ -108,75 +79,101 @@ router.post("/withdrawal", userAuth, async (req, res) => {
   }
 });
 
-// router.post('/admin/process-withdrawal/:withdrawalId', async (req, res) => {
-//   try {
-//     const { withdrawalId } = req.params;
-//     const { action, processedBy } = req.body; // action = 'approve' or 'reject'
+router.get("/withdrawals", userAuth, async (req, res) => {
+  const { status } = req.query;
+  console.log("called", status);
+  const withdrawals = await Withdrawal.find(status ? { status } : {})
+    .populate("user")
+    .sort({ createdAt: -1 });
+  res.json(withdrawals);
+});
 
-//     // Ensure action is valid
-//     if (!['approve', 'reject'].includes(action)) {
-//       return res.status(400).json({ message: 'Invalid action. Use "approve" or "reject".' });
-//     }
+router.post(
+  "/process-withdrawal/:withdrawalId",
+  checkRole(["admin"]),
+  async (req, res) => {
+    try {
+      const { withdrawalId } = req.params;
+      const { action, processedBy } = req.body; // action = 'approve' or 'reject'
 
-//     // Find the withdrawal request
-//     const withdrawalRequest = await Withdrawal.findById(withdrawalId)
-//       .populate('user')
-//       .exec();
+      // Ensure action is valid
+      if (!["approve", "reject"].includes(action)) {
+        return res
+          .status(400)
+          .json({ message: 'Invalid action. Use "approve" or "reject".' });
+      }
 
-//     if (!withdrawalRequest) {
-//       return res.status(404).json({ message: 'Withdrawal request not found.' });
-//     }
+      // Find the withdrawal request
+      const withdrawalRequest = await Withdrawal.findById(withdrawalId)
+        .populate("user")
+        .exec();
 
-//     const { user, amount, status, createdAt } = withdrawalRequest;
+      if (!withdrawalRequest) {
+        return res
+          .status(404)
+          .json({ message: "Withdrawal request not found." });
+      }
 
-//     // 1. Check if the user has enough earnings (5000 Naira or more)
-//     if (user.balance < 5000) {
-//       return res.status(400).json({ message: 'User does not have sufficient earnings to withdraw.' });
-//     }
+      const { user, amount, status, createdAt } = withdrawalRequest;
 
-//     // 2. Check if the user has made a withdrawal request within the last 24 hours
-//     const lastWithdrawal = await Withdrawal.findOne({ user: user._id }).sort({ createdAt: -1 }).exec();
-//     if (lastWithdrawal) {
-//       const timeDifference = moment().diff(moment(lastWithdrawal.createdAt), 'hours');
-//       if (timeDifference < 24) {
-//         return res.status(400).json({ message: 'User can only withdraw once every 24 hours.' });
-//       }
-//     }
+      // 1. Check if the user has enough earnings (5000 Naira or more)
+      if (user.balance < 5000) {
+        return res.status(400).json({
+          message: "User does not have sufficient earnings to withdraw.",
+        });
+      }
 
-//     // 3. Process the withdrawal request
-//     if (action === 'approve') {
-//       withdrawalRequest.status = 'approved';
-//       // Deduct the amount from the user's balance
-//       user.balance -= amount;
-//       await user.save();
+      // 2. Check if the user has made a withdrawal request within the last 24 hours
+      const lastWithdrawal = await Withdrawal.findOne({ user: user._id })
+        .sort({ createdAt: -1 })
+        .exec();
+      if (lastWithdrawal) {
+        const timeDifference = moment().diff(
+          moment(lastWithdrawal.createdAt),
+          "hours"
+        );
+        if (timeDifference < 24) {
+          return res
+            .status(400)
+            .json({ message: "User can only withdraw once every 24 hours." });
+        }
+      }
 
-//       // Create a transaction record for the withdrawal
-//       const transaction = new Transaction({
-//         user: user._id,
-//         type: 'withdrawal',
-//         amount: amount,
-//         balanceAfter: user.balance,
-//         status: 'successful',
-//         details: `Withdrawal of ${amount} Naira processed.`,
-//       });
-//       await transaction.save();
-//     } else if (action === 'reject') {
-//       withdrawalRequest.status = 'rejected';
-//     }
+      // 3. Process the withdrawal request
+      if (action === "approve") {
+        withdrawalRequest.status = "approved";
+        // Deduct the amount from the user's balance
+        user.balance -= amount;
+        await user.save();
 
-//     // Save the updated withdrawal request
-//     withdrawalRequest.processedBy = processedBy;
-//     await withdrawalRequest.save();
+        // Create a transaction record for the withdrawal
+        const transaction = new Transaction({
+          user: user._id,
+          type: "withdrawal",
+          amount: amount,
+          balanceAfter: user.balance,
+          status: "successful",
+          details: `Withdrawal of ${amount} Naira processed.`,
+        });
+        await transaction.save();
+      } else if (action === "reject") {
+        withdrawalRequest.status = "rejected";
+      }
 
-//     res.status(200).json({
-//       message: `Withdrawal request ${action}d successfully.`,
-//       withdrawalRequest,
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: 'Server error', error: err.message });
-//   }
-// });
+      // Save the updated withdrawal request
+      withdrawalRequest.processedBy = processedBy;
+      await withdrawalRequest.save();
+
+      res.status(200).json({
+        message: `Withdrawal request ${action}d successfully.`,
+        withdrawalRequest,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error", error: err.message });
+    }
+  }
+);
 
 router.get("/:username", async (req, res) => {
   try {
