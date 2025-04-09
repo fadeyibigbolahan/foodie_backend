@@ -187,12 +187,12 @@ const userLogin = async (userCreds, role, res) => {
   }
 
   // we will check the role
-  if (user.role !== role) {
-    return res.status(403).json({
-      message: "Please make sure you are loggin in from the right portal.",
-      success: false,
-    });
-  }
+  // if (user.role !== role) {
+  //   return res.status(403).json({
+  //     message: "Please make sure you are loggin in from the right portal.",
+  //     success: false,
+  //   });
+  // }
 
   // That means user is existing and trying to signin from the right portal
   //Now check for the password
