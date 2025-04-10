@@ -23,6 +23,7 @@ async function distributeCommission(
       0
     );
 
+    // Find the user and populate package details
     let user = await User.findOne({ username }).populate("package");
     if (!user || !user.referredBy) {
       console.log(`No user or no referrer for ${username}`);
@@ -40,22 +41,29 @@ async function distributeCommission(
       `Distributing commission for ${username} with package price: ${packagePrice}, BV: ${packageBV}`
     );
 
+    // Handle upgrade scenario
+    let priceDifference = 0;
+    let bvDifference = 0;
+    let welcomeBonus = 0;
+
+    if (isUpgrade && previousPackage) {
+      // Validate previousPackage
+      if (!previousPackage || !previousPackage.price || !previousPackage.bv) {
+        console.log("Invalid previousPackage data.");
+        return;
+      }
+      priceDifference = packagePrice - previousPackage.price;
+      bvDifference = packageBV - previousPackage.bv;
+      welcomeBonus = (priceDifference * 20) / 100;
+    }
+
     let referrerUsername = user.referredBy;
     let level = 1;
     let totalDistributed = 0;
     let totalBVDistributed = 0;
     let lastValidReferrer = null;
 
-    let priceDifference = 0;
-    let bvDifference = 0;
-    let welcomeBonus = 0;
-
-    if (isUpgrade && previousPackage) {
-      priceDifference = packagePrice - previousPackage.price;
-      bvDifference = packageBV - previousPackage.bv;
-      welcomeBonus = (priceDifference * 20) / 100;
-    }
-
+    // Process commission distribution for referrers
     while (referrerUsername && level <= COMMISSION_STRUCTURE.length) {
       const commissionConfig = COMMISSION_STRUCTURE.find(
         (l) => l.level === level
@@ -66,20 +74,23 @@ async function distributeCommission(
         username: referrerUsername,
       }).populate("package");
 
-      if (!referrer) break;
+      if (!referrer) break; // If no referrer found, break the loop
 
       lastValidReferrer = referrer;
 
       let commissionAmount = (packagePrice * percentage) / 100;
 
+      // If it's an upgrade, adjust the commission logic
       if (isUpgrade && previousPackage) {
         let prevCommissionAmount = (previousPackage.price * percentage) / 100;
 
         commissionAmount =
           commissionAmount - prevCommissionAmount + welcomeBonus;
 
+        // Adjust BV for referrer if it's an upgrade
         referrer.bv += bvDifference;
 
+        // If commission amount is zero or less, skip the level
         if (commissionAmount <= 0) {
           referrerUsername = referrer.referredBy;
           level++;
@@ -90,11 +101,13 @@ async function distributeCommission(
       totalDistributed += percentage;
       totalBVDistributed += packageBV;
 
+      // Update referrer earnings
       referrer.earnings += commissionAmount;
       referrer.totalEarnings += commissionAmount;
       referrer.bv += packageBV;
       referrer.monthlyBV += packageBV;
 
+      // Save referrer data and create transaction and notification
       await referrer.save();
 
       await Transaction.create({
@@ -116,7 +129,7 @@ async function distributeCommission(
       level++;
     }
 
-    // Corrected remaining commission logic
+    // Handle remaining commission logic if there is any unassigned commission
     if (lastValidReferrer && totalDistributed < TOTAL_COMMISSION_PERCENTAGE) {
       const remainingPercentage =
         TOTAL_COMMISSION_PERCENTAGE - totalDistributed;
