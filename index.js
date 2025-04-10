@@ -15,6 +15,12 @@ app.use(passport.initialize());
 
 require("./middlewares/passport")(passport);
 
+app.get("/scheduled-task", (req, res) => {
+  console.log("Scheduled task triggered!");
+  // Run your task here, e.g., database cleanup, sending emails, etc.
+  res.send("Task completed");
+});
+
 // User Router Middleware
 app.use("/api/users", require("./routes/users"));
 app.use("/api/code", require("./routes/packageCode"));
