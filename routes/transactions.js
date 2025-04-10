@@ -205,4 +205,51 @@ router.get("/user-summary/:username", async (req, res) => {
   }
 });
 
+// Route: POST /api/users/:username/add-earning
+router.post("/:username/add-earning", async (req, res) => {
+  const { username } = req.params;
+  const { amount, reason } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: "Amount must be greater than 0." });
+  }
+
+  try {
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // Add to user's earnings
+    user.earnings += amount;
+    user.totalEarnings += amount;
+
+    await user.save();
+
+    // Create transaction
+    await Transaction.create({
+      user: user._id,
+      type: "earning",
+      amount,
+      balanceAfter: user.earnings,
+      details: reason || "Manual earning adjustment",
+    });
+
+    // Create notification
+    await createNotification(
+      user._id,
+      `₦${amount.toFixed(2)} has been added to your earnings. ${reason || ""}`
+    );
+
+    res.status(200).json({
+      message: `₦${amount} added to ${username}'s earnings.`,
+      balanceAfter: user.earnings,
+    });
+  } catch (err) {
+    console.error("Error adding earning:", err);
+    res.status(500).json({ error: "Server error." });
+  }
+});
+
 module.exports = router;
