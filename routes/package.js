@@ -1,5 +1,8 @@
 const express = require("express");
 const Package = require("../models/Package");
+const Transaction = require("../models/Transaction");
+const distributeCommission = require("../utils/distributeCommission");
+const createNotification = require("../utils/createNotification");
 const User = require("../models/User");
 const { userAuth } = require("../utils/Auth");
 const router = express.Router();
@@ -47,47 +50,49 @@ router.put("/upgrade-package", userAuth, async (req, res) => {
     const { newPackageId } = req.body;
     const userId = req.user.id;
 
-    // Find the user and populate their package
     let user = await User.findById(userId).populate("package");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Find the new package and ensure it's valid
     let newPackage = await Package.findById(newPackageId);
     if (!newPackage)
       return res.status(400).json({ message: "Invalid package" });
 
-    // Ensure the new package is an upgrade (price should be higher)
     if (user.package && user.package.price >= newPackage.price) {
       return res
         .status(400)
         .json({ message: "Upgrade must be to a higher package" });
     }
 
-    // Calculate the upgrade cost (price difference between the new and current package)
     const upgradeCost =
       newPackage.price - (user.package ? user.package.price : 0);
 
-    // Ensure user has sufficient earnings for the upgrade
     if (user.earnings < upgradeCost) {
       return res
         .status(400)
         .json({ message: "Insufficient balance for upgrade" });
     }
 
-    // Deduct the upgrade cost from the user's earnings
-    user.earnings -= upgradeCost;
+    // Calculate rewards
+    const previousPackage = user.package;
+    const bvDifference = newPackage.bv - (previousPackage?.bv || 0);
+    const cashReward = (upgradeCost * 20) / 100;
 
-    // Assign the new package to the user
-    const previousPackage = user.package; // Store the previous package
+    // Apply upgrades
+    user.earnings -= upgradeCost;
     user.package = newPackage;
 
-    // Save the updated user document
+    // Apply upgrade benefits
+    user.earnings += cashReward;
+    user.totalEarnings += cashReward;
+    user.bv += bvDifference;
+    user.monthlyBV += bvDifference;
+
     await user.save();
 
-    // Distribute commission for the upgrade
-    await distributeCommission(user.username, true, previousPackage);
+    // Distribute referral commission
+    // await distributeCommission(user.username, true, previousPackage);
 
-    // Optionally, record the transaction for the upgrade (you may want to create a transaction log here)
+    // Log the upgrade transaction
     await Transaction.create({
       user: user._id,
       type: "package-upgrade",
@@ -96,8 +101,33 @@ router.put("/upgrade-package", userAuth, async (req, res) => {
       details: `Package upgrade from ${previousPackage.name} to ${newPackage.name}`,
     });
 
-    // Send a success response
-    res.status(200).json({ message: "Package upgraded successfully", user });
+    await createNotification(
+      user._id,
+      `You upgraded your package from ${previousPackage.name} to ${newPackage.name}.`
+    );
+
+    // Log the reward
+    await Transaction.create({
+      user: user._id,
+      type: "upgrade-reward",
+      amount: cashReward,
+      balanceAfter: user.creditWallet,
+      details: `20% reward for upgrading package from ${previousPackage.name} to ${newPackage.name}`,
+    });
+
+    await createNotification(
+      user._id,
+      `You received ₦${cashReward.toFixed(2)} for upgrading your package.`
+    );
+
+    res.status(200).json({
+      message: "Package upgraded successfully",
+      user,
+      reward: {
+        cash: cashReward,
+        bv: bvDifference,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
