@@ -2,6 +2,7 @@ const router = require("express").Router();
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const transporter = require("../utils/emailConfig");
+const getReferralBVTree = require("../utils/getReferralBVTree");
 
 // Bring in the User Registration function
 const {
@@ -213,4 +214,27 @@ router.put("/profile/update", userAuth, async (req, res) => {
 /****************************************************************************************************
 UPDATE USER => ENDS
 ****************************************************************************************************/
+
+/****************************************************************************************************
+ * GET REFERRAL BV TREE => START
+ ****************************************************************************************************/
+router.get("/bv-referral-tree/:username", userAuth, async (req, res) => {
+  try {
+    const username = req.params.username;
+
+    const tree = await getReferralBVTree(username);
+    console.log("tree", tree);
+
+    res.status(200).json({
+      message: "Referral BV Tree Structure",
+      tree,
+    });
+  } catch (error) {
+    console.error("Error generating tree:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+/****************************************************************************************************
+ * GET REFERRAL BV TREE => ENDS
+ ****************************************************************************************************/
 module.exports = router;
