@@ -1,7 +1,12 @@
 const User = require("../models/User");
 
 async function getReferralBVTree(username) {
-  const user = await User.findOne({ username });
+  const user = await User.findOne({ username }).populate(
+    "package",
+    "name price"
+  );
+
+  // console.log("User:", user); // Debugging line to check user details
   if (!user) {
     console.log(`User not found: ${username}`);
     return null;
@@ -22,7 +27,8 @@ async function getReferralBVTree(username) {
   return {
     username: user.username,
     bv: user.bv,
-    totalBV, // <-- This is the cumulative BV (self + downlines)
+    package: user.package.name,
+    // totalBV, // <-- This is the cumulative BV (self + downlines)
     referrals: children.filter(Boolean),
   };
 }
