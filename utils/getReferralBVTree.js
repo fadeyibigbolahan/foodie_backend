@@ -1,10 +1,7 @@
 const User = require("../models/User");
 
 async function getReferralBVTree(username) {
-  const user = await User.findOne({ username }).populate(
-    "package",
-    "name price"
-  );
+  const user = await User.findOne({ username }).populate("package", "name bv");
 
   // console.log("User:", user); // Debugging line to check user details
   if (!user) {
