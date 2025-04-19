@@ -27,7 +27,7 @@ async function getReferralBVTree(username) {
   return {
     username: user.username,
     bv: user.bv,
-    package: user.package.name,
+    package: user.package,
     // totalBV, // <-- This is the cumulative BV (self + downlines)
     referrals: children.filter(Boolean),
   };
