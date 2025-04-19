@@ -90,7 +90,7 @@ router.put("/upgrade-package", userAuth, async (req, res) => {
     await user.save();
 
     // Distribute referral commission
-    // await distributeCommission(user.username, true, previousPackage);
+    await distributeCommission(user.username, true, previousPackage);
 
     // Log the upgrade transaction
     await Transaction.create({
