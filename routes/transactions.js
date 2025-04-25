@@ -144,7 +144,8 @@ router.post(
       if (action === "approve") {
         withdrawalRequest.status = "approved";
         // Deduct the amount from the user's balance
-        user.balance -= amount;
+        user.earnings -= amount;
+        user.totalWithdrawals += amount; // Update total withdrawals
         await user.save();
 
         // Create a transaction record for the withdrawal
