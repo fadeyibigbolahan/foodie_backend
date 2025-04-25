@@ -146,14 +146,14 @@ router.post(
         // Deduct the amount from the user's balance
         user.earnings -= amount;
         user.totalWithdrawals += amount; // Update total withdrawals
-        await user.save();
+        const updatedUser = await user.save();
 
         // Create a transaction record for the withdrawal
         const transaction = new Transaction({
           user: user._id,
           type: "withdrawal",
           amount: amount,
-          balanceAfter: user.balance,
+          balanceAfter: updatedUser.earnings,
           status: "successful",
           details: `Withdrawal of ${amount} Naira processed.`,
         });
