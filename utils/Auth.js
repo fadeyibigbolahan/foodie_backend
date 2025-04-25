@@ -259,10 +259,12 @@ ROLES BASED AUTHENTICATION => STARTS
 /**
  * @DESC Check Role Middleware
  */
-const checkRole = (roles) => (req, res, next) =>
-  !roles.includes(req.user.role)
-    ? res.status(401).json("Unauthorized")
-    : next();
+const checkRole = (roles) => (req, res, next) => {
+  if (!roles.includes(req.user.role)) {
+    return res.status(401).json("Unauthorized");
+  }
+  next();
+};
 
 /****************************************************************************************************
 ROLES BASED AUTHENTICATION => ENDS

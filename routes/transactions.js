@@ -90,6 +90,7 @@ router.get("/withdrawals", userAuth, async (req, res) => {
 
 router.post(
   "/process-withdrawal/:withdrawalId",
+  userAuth,
   checkRole(["admin"]),
   async (req, res) => {
     try {
