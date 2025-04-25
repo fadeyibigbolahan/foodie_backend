@@ -117,6 +117,9 @@ router.post(
 
       const { user, amount, status, createdAt } = withdrawalRequest;
 
+      const withdrawalUser = await User.findOne({ username: user.username });
+      console.log("withdrawalUser", withdrawalUser);
+
       // 1. Check if the user has enough earnings (5000 Naira or more)
       if (user.balance < 5000) {
         return res.status(400).json({
@@ -124,29 +127,14 @@ router.post(
         });
       }
 
-      // 2. Check if the user has made a withdrawal request within the last 24 hours
-      // const lastWithdrawal = await Withdrawal.findOne({ user: user._id })
-      //   .sort({ createdAt: -1 })
-      //   .exec();
-      // if (lastWithdrawal) {
-      //   const timeDifference = moment().diff(
-      //     moment(lastWithdrawal.createdAt),
-      //     "hours"
-      //   );
-      //   if (timeDifference < 24) {
-      //     return res
-      //       .status(400)
-      //       .json({ message: "User can only withdraw once every 24 hours." });
-      //   }
-      // }
-
       // 3. Process the withdrawal request
       if (action === "approve") {
         withdrawalRequest.status = "approved";
         // Deduct the amount from the user's balance
-        user.earnings -= amount;
-        user.totalWithdrawals += amount; // Update total withdrawals
-        const updatedUser = await user.save();
+        withdrawalUser.earnings -= amount;
+        withdrawalUser.totalWithdrawals += amount; // Update total withdrawals
+
+        const updatedUser = await withdrawalUser.save();
 
         // Create a transaction record for the withdrawal
         const transaction = new Transaction({
