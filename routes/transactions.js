@@ -125,20 +125,20 @@ router.post(
       }
 
       // 2. Check if the user has made a withdrawal request within the last 24 hours
-      const lastWithdrawal = await Withdrawal.findOne({ user: user._id })
-        .sort({ createdAt: -1 })
-        .exec();
-      if (lastWithdrawal) {
-        const timeDifference = moment().diff(
-          moment(lastWithdrawal.createdAt),
-          "hours"
-        );
-        if (timeDifference < 24) {
-          return res
-            .status(400)
-            .json({ message: "User can only withdraw once every 24 hours." });
-        }
-      }
+      // const lastWithdrawal = await Withdrawal.findOne({ user: user._id })
+      //   .sort({ createdAt: -1 })
+      //   .exec();
+      // if (lastWithdrawal) {
+      //   const timeDifference = moment().diff(
+      //     moment(lastWithdrawal.createdAt),
+      //     "hours"
+      //   );
+      //   if (timeDifference < 24) {
+      //     return res
+      //       .status(400)
+      //       .json({ message: "User can only withdraw once every 24 hours." });
+      //   }
+      // }
 
       // 3. Process the withdrawal request
       if (action === "approve") {
