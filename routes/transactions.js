@@ -106,7 +106,7 @@ router.post(
 
       // Find the withdrawal request
       const withdrawalRequest = await Withdrawal.findById(withdrawalId)
-        .populate("users", "_id name username")
+        .populate("user", "_id name username")
         .exec();
 
       if (!withdrawalRequest) {
