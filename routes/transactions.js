@@ -83,7 +83,7 @@ router.get("/withdrawals", userAuth, async (req, res) => {
   const { status } = req.query;
   console.log("called", status);
   const withdrawals = await Withdrawal.find(status ? { status } : {})
-    .populate("user")
+    .populate("user", "_id, name, username")
     .sort({ createdAt: -1 });
   res.json(withdrawals);
 });

@@ -78,7 +78,7 @@ const userRegister = async (userDets, role, res) => {
 
     const savedUser = await newUser.save();
     if (!savedUser) {
-      console.log("User saving failed:", newUser.username);
+      // console.log("User saving failed:", newUser.username);
       return res.status(500).json({
         message: "Error saving user to the database. Try again later.",
         success: false,

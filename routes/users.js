@@ -60,7 +60,7 @@ router.get("/profile", userAuth, async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    console.log("user", user);
+    // console.log("user", user);
 
     res.status(200).json({
       name: user.name,
@@ -130,7 +130,7 @@ router.put("/reset-password/:token", async (req, res) => {
     const { newPassword } = req.body;
     console.log("token", token, "newPassword", newPassword);
     const user = await User.findOne({ verificationCode: token });
-    console.log("user", user);
+    // console.log("user", user);
     if (!user) {
       return res.status(404).json({
         data: "",
@@ -192,7 +192,7 @@ router.put("/profile/update", userAuth, async (req, res) => {
     const userId = req.user._id; // Get user ID from token
 
     let user = await User.findById(userId);
-    console.log("user", user);
+    // console.log("user", user);
     console.log("phone", req.body);
     if (!user) return res.status(404).json({ message: "User not found" });
 
