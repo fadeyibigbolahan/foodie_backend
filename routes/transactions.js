@@ -11,12 +11,20 @@ router.post("/withdrawal", userAuth, async (req, res) => {
   try {
     const userId = req.user._id; // User ID from authenticated request
     const { amount, accountDetails } = req.body;
+    console.log("withdrawal", amount, accountDetails);
 
     // Fetch the user's current balance (earnings)
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the user's earnings are at least 5000
+    if (amount < 5000) {
+      return res.status(400).json({
+        message: "Minimum withdrawal amount is 5000 NGN.",
+      });
     }
 
     // Check if the user's earnings are at least 5000
@@ -146,8 +154,16 @@ router.post(
           details: `Withdrawal of ${amount} Naira processed.`,
         });
         await transaction.save();
+        await createNotification(
+          user._id,
+          `Your withdrawal request of ${amount} Naira has been approved. Status: successful.`
+        );
       } else if (action === "reject") {
         withdrawalRequest.status = "rejected";
+        await createNotification(
+          user._id,
+          `Your withdrawal request of ${amount} Naira has been rejected. Status: failed.`
+        );
       }
 
       // Save the updated withdrawal request
