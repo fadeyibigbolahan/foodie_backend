@@ -129,7 +129,7 @@ router.post(
       console.log("withdrawalUser", withdrawalUser);
 
       // 1. Check if the user has enough earnings (5000 Naira or more)
-      if (user.balance < 5000) {
+      if (user.balance < amount) {
         return res.status(400).json({
           message: "User does not have sufficient earnings to withdraw.",
         });
