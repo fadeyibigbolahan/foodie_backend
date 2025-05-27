@@ -28,11 +28,11 @@ router.post("/withdrawal", userAuth, async (req, res) => {
     // }
 
     // Check if the user's earnings are at least 5000
-    if (user.earnings < 5000) {
-      return res.status(400).json({
-        message: "Your balance is below the required 5000 NGN for withdrawal.",
-      });
-    }
+    // if (user.earnings < 5000) {
+    //   return res.status(400).json({
+    //     message: "Your balance is below the required 5000 NGN for withdrawal.",
+    //   });
+    // }
 
     // Check if the user has made a withdrawal in the last 24 hours
     const lastWithdrawal = await Withdrawal.findOne({ user: userId }).sort({
