@@ -21,11 +21,11 @@ router.post("/withdrawal", userAuth, async (req, res) => {
     }
 
     // Check if the user's earnings are at least 5000
-    if (amount < 5000) {
-      return res.status(400).json({
-        message: "Minimum withdrawal amount is 5000 NGN.",
-      });
-    }
+    // if (amount < 5000) {
+    //   return res.status(400).json({
+    //     message: "Minimum withdrawal amount is 5000 NGN.",
+    //   });
+    // }
 
     // Check if the user's earnings are at least 5000
     if (user.earnings < 5000) {
