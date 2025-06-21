@@ -124,44 +124,44 @@ FORGET PASSWORD => ENDS
 /****************************************************************************************************
 RESET PASSWORD => START
 ****************************************************************************************************/
-router.put("/reset-password/:token", async (req, res) => {
+router.put("/reset-password", async (req, res) => {
   try {
-    const { token } = req.params;
-    const { newPassword } = req.body;
-    console.log("token", token, "newPassword", newPassword);
-    const user = await User.findOne({ verificationCode: token });
-    // console.log("user", user);
-    if (!user) {
-      return res.status(404).json({
-        data: "",
-        message: "Invalid or expired token",
+    const { username, newPassword } = req.body;
+
+    if (!username || !newPassword) {
+      return res.status(400).json({
         success: false,
+        message: "Username and new password are required",
       });
     }
 
-    function generateRandomNumbers() {
-      return Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    const verificationCode = generateRandomNumbers();
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.password = hashedPassword;
 
-    const password = await bcrypt.hash(newPassword, 12);
-    user.verificationCode = verificationCode;
-    user.password = password;
-    const savedUser = await user.save();
-
-    console.log("res", savedUser);
+    await user.save();
 
     res.json({
-      data: savedUser,
-      message: "Password reset successful",
       success: true,
+      message: "Password reset successful",
     });
   } catch (err) {
-    console.log("res", err);
-    res.status(500).json(err);
+    console.error("Error resetting password:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 });
+
 /****************************************************************************************************
 RESET PASSWORD => ENDS
 ****************************************************************************************************/
